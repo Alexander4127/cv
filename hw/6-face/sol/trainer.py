@@ -38,6 +38,7 @@ class Trainer:
             lr_scheduler,
     ):
         self.device = device
+        self.config = config
         self.logger = logging.getLogger(__name__)
 
         self.model = model
@@ -120,7 +121,7 @@ class Trainer:
             self.optimizer.zero_grad()
 
         batch["pred"] = self.model(batch["img"])
-        batch["loss"] = self.criterion(batch["pred"], batch["ans"])
+        batch["loss"] = self.criterion(batch["pred"], batch["ans"]) * self.config['img_size']
 
         if is_train:
             batch["loss"].backward()

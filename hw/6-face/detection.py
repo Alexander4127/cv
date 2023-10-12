@@ -37,8 +37,8 @@ def collate_fn(dataset_items):
 def main():
     config = {
         "wandb_project": "cv_faces",
-        "wandb_name": "test_exp",
-        "img_size": 32,
+        "wandb_name": "2_decr_lr_and_chan",
+        "img_size": 128,
         "n_channels": 8,
         "batch_size": 32
     }
@@ -69,8 +69,15 @@ def main():
 
     # build optimizer, learning rate scheduler. delete every line containing lr_scheduler for
     # disabling scheduler
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, steps_per_epoch=100, epochs=10, max_lr=1e-2, pct_start=0.2, anneal_strategy='cos')
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        steps_per_epoch=100,
+        epochs=10,
+        max_lr=1e-3,
+        pct_start=0.2,
+        anneal_strategy='cos'
+    )
 
     trainer = Trainer(
         model=model,
@@ -80,7 +87,7 @@ def main():
         config=config,
         device=device,
         dataloaders=dataloaders,
-        epochs=10,
+        epochs=100,
         log_step=10,
         len_epoch=50,
         lr_scheduler=lr_scheduler
