@@ -37,7 +37,7 @@ def collate_fn(dataset_items):
 def main():
     config = {
         "wandb_project": "cv_faces",
-        "wandb_name": "2_decr_lr_and_chan",
+        "wandb_name": "3_change_loss",
         "img_size": 128,
         "n_channels": 8,
         "batch_size": 32
