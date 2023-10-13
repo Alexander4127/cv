@@ -39,7 +39,7 @@ def main():
         "wandb_project": "cv_faces",
         "wandb_name": "10_const_lr_resnet",
         "img_size": 128,
-        "n_channels": 8,
+        "n_channels": 32,
         "batch_size": 32
     }
 
@@ -83,8 +83,8 @@ def main():
         device=device,
         dataloaders=dataloaders,
         epochs=100,
-        log_step=20,
-        len_epoch=200,
+        log_step=10,
+        len_epoch=50,
         lr_scheduler=lr_scheduler
     )
 
