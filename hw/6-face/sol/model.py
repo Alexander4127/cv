@@ -5,20 +5,25 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def conv3x3(in_chan, out_chan):
+    return nn.Conv2d(in_channels=in_chan, out_channels=out_chan, kernel_size=3, padding=1)
+
+
 class ResBlock(nn.Module):
     def __init__(self, in_chan, out_chan):
         super().__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels=in_chan, out_channels=in_chan, kernel_size=3, padding=1),
-            nn.BatchNorm2d(num_features=in_chan),
+            conv3x3(in_chan, out_chan),
+            nn.BatchNorm2d(num_features=out_chan),
             nn.ReLU()
         )
         self.conv2 = nn.Sequential(
-            nn.Conv2d(in_channels=in_chan, out_channels=out_chan, kernel_size=3, padding=1),
+            conv3x3(out_chan, out_chan),
             nn.BatchNorm2d(num_features=out_chan)
         )
-        self.downsampler = nn.Sequential(
-            nn.Conv2d(in_channels=in_chan, out_channels=out_chan, kernel_size=3, padding=1),
+        self.downsample = nn.Sequential(
+            nn.Conv2d(in_channels=in_chan, out_channels=out_chan, kernel_size=1),
             nn.BatchNorm2d(num_features=out_chan),
         )
         self.relu = nn.ReLU()
@@ -26,7 +31,7 @@ class ResBlock(nn.Module):
     def forward(self, x):
         out = self.conv1(x)
         out = self.conv2(out)
-        out += self.downsampler(x)
+        out += self.downsample(x)
         return self.relu(out)
 
 
@@ -47,9 +52,9 @@ class Model(nn.Module):
         )
         self.head = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=img_size**2 * n_channels // 16, out_features=512),
+            nn.Linear(in_features=img_size**2 * n_channels // 16, out_features=128),
             nn.ReLU(),
-            nn.Linear(in_features=512, out_features=28)
+            nn.Linear(in_features=128, out_features=28)
         )
 
     def forward(self, inputs):

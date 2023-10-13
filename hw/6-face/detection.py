@@ -37,7 +37,7 @@ def collate_fn(dataset_items):
 def main():
     config = {
         "wandb_project": "cv_faces",
-        "wandb_name": "6_cyclic_lr",
+        "wandb_name": "10_const_lr_resnet",
         "img_size": 128,
         "n_channels": 8,
         "batch_size": 32
@@ -71,7 +71,7 @@ def main():
     # disabling scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
-        optimizer, total_iters=5
+        optimizer, total_iters=1, factor=1
     )
 
     trainer = Trainer(
@@ -83,8 +83,8 @@ def main():
         device=device,
         dataloaders=dataloaders,
         epochs=100,
-        log_step=10,
-        len_epoch=50,
+        log_step=20,
+        len_epoch=200,
         lr_scheduler=lr_scheduler
     )
 
