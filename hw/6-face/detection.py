@@ -37,9 +37,9 @@ def collate_fn(dataset_items):
 def main():
     config = {
         "wandb_project": "cv_faces",
-        "wandb_name": "6_cyclic_lr",
+        "wandb_name": "7_def_model",
         "img_size": 128,
-        "n_channels": 8,
+        "n_channels": 64,
         "batch_size": 32
     }
 
