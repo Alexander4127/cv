@@ -115,13 +115,24 @@ class Trainer:
 
         return log
 
+    def _calc_loss(self, pred, ans, size, **kwargs):
+        bs = pred.shape[0]
+        assert len(size.shape) == 2 and len(pred.shape) == len(ans.shape) == 2
+        assert size.shape[1] == 2 and size.shape[0] == bs
+        mask = torch.arange(0, pred.shape[1]) % 2 == 0
+        pred[:, mask] *= size[:, 0]
+        ans[:, mask] *= size[:, 0]
+        pred[:, ~mask] *= size[:, 1]
+        ans[:, ~mask] *= size[:, 1]
+        return self.criterion(pred, ans)
+
     def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch, self.device)
         if is_train:
             self.optimizer.zero_grad()
 
         batch["pred"] = self.model(batch["img"])
-        batch["loss"] = self.criterion(batch["pred"] * batch["size"], batch["ans"] * batch["size"])
+        batch["loss"] = self._calc_loss(**batch)
 
         if is_train:
             batch["loss"].backward()
