@@ -38,7 +38,6 @@ class ResBlock(nn.Module):
 class Model(nn.Module):
     def __init__(self, img_size, n_channels):
         super().__init__()
-        assert img_size % 16 == 0
         self.blocks = nn.Sequential(
             ResBlock(in_chan=3, out_chan=n_channels * 2),
             nn.BatchNorm2d(num_features=n_channels * 2),
