@@ -39,23 +39,24 @@ class Model(nn.Module):
     def __init__(self, img_size, n_channels):
         super().__init__()
         assert img_size % 16 == 0
-        self.upsample = nn.Conv2d(in_channels=3, out_channels=n_channels, kernel_size=3, padding=1)
         self.blocks = nn.Sequential(
-            ResBlock(in_chan=n_channels, out_chan=n_channels * 2),
+            ResBlock(in_chan=3, out_chan=n_channels * 2),
+            nn.BatchNorm2d(num_features=n_channels * 2),
             nn.MaxPool2d(kernel_size=2),
             ResBlock(in_chan=n_channels * 2, out_chan=n_channels * 4),
+            nn.BatchNorm2d(num_features=n_channels * 4),
             nn.MaxPool2d(kernel_size=2),
             ResBlock(in_chan=n_channels * 4, out_chan=n_channels * 8),
+            nn.BatchNorm2d(num_features=n_channels * 8),
             nn.MaxPool2d(kernel_size=2),
             ResBlock(in_chan=n_channels * 8, out_chan=n_channels * 16),
+            nn.BatchNorm2d(num_features=n_channels * 16),
             nn.MaxPool2d(kernel_size=2)
         )
         self.head = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=img_size**2 * n_channels // 16, out_features=128),
-            nn.ReLU(),
-            nn.Linear(in_features=128, out_features=28)
+            nn.Linear(in_features=(img_size // 16)**2 * n_channels * 16, out_features=28),
         )
 
     def forward(self, inputs):
-        return self.head(self.blocks(self.upsample(inputs)))
+        return self.head(self.blocks(inputs))

@@ -121,7 +121,7 @@ class Trainer:
             self.optimizer.zero_grad()
 
         batch["pred"] = self.model(batch["img"])
-        batch["loss"] = self.criterion(batch["pred"], batch["ans"]) * self.config['img_size']
+        batch["loss"] = self.criterion(batch["pred"] * batch["size"], batch["ans"] * batch["size"])
 
         if is_train:
             batch["loss"].backward()

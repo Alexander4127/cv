@@ -35,7 +35,8 @@ class ImageDataset(Dataset):
         idx = self._idx[out_idx]
         padded_idx = '0' * (5 - len(str(idx))) + str(idx) + '.jpg'
         img_path = self._data_dir / 'images' / padded_idx
-        img = torch.tensor(self._read_img(img_path)) / 255
+        img = torch.tensor(self._read_img(img_path))
+
         assert img.shape[0] == 3
         real_size = img.shape[1:]
         img = self._resize(img)

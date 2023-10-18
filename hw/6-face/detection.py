@@ -30,6 +30,9 @@ np.random.seed(SEED)
 def collate_fn(dataset_items):
     result_batch = {}
     for k in dataset_items[0].keys():
+        if k == 'size':
+            result_batch[k] = torch.tensor(np.array([item[k] for item in dataset_items]).reshape(-1))
+            continue
         result_batch[k] = torch.stack([torch.tensor(item[k]) for item in dataset_items])
     return result_batch
 
@@ -37,8 +40,8 @@ def collate_fn(dataset_items):
 def main():
     config = {
         "wandb_project": "cv_faces",
-        "wandb_name": "11_incr_resnet",
-        "img_size": 128,
+        "wandb_name": "12_st_resnet",
+        "img_size": 200,
         "n_channels": 32,
         "batch_size": 32
     }
