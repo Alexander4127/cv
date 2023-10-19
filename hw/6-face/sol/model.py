@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 class Model(nn.Module):
     def __init__(self, img_size, n_channels):
         super().__init__()
+        self.img_size = img_size
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=n_channels, kernel_size=3, padding=1),
             nn.ReLU(),
