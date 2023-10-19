@@ -82,7 +82,7 @@ def main():
         config=config,
         device=device,
         dataloaders=dataloaders,
-        epochs=100,
+        epochs=1000,
         log_step=10,
         len_epoch=50,
         lr_scheduler=lr_scheduler
