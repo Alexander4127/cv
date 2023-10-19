@@ -3,7 +3,9 @@ from pathlib import Path
 from random import shuffle
 import logging
 
+import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -13,6 +15,7 @@ from tqdm import tqdm
 
 from sol.tracker import MetricTracker
 from sol.logger import WanDBWriter
+from sol.utils import pred2coord, coord2pred
 
 
 logger = logging.getLogger(__name__)
@@ -102,6 +105,7 @@ class Trainer:
                     "learning rate", self.lr_scheduler.get_last_lr()[0]
                 )
                 self._log_scalars(self.train_metrics)
+                self._log_image(**batch)
 
                 last_train_metrics = self.train_metrics.result()
                 self.train_metrics.reset()
@@ -121,7 +125,7 @@ class Trainer:
             self.optimizer.zero_grad()
 
         batch["pred"] = self.model(batch["img"])
-        batch["loss"] = self.criterion(batch["pred"], batch["ans"]) * self.config['img_size']
+        batch["loss"] = self.criterion(batch["pred"], batch["ans"])
 
         if is_train:
             batch["loss"].backward()
@@ -155,7 +159,7 @@ class Trainer:
                     metrics=self.evaluation_metrics,
                 )
             self.writer.set_step(epoch * self.len_epoch, part)
-
+            self._log_image(**batch)
             self._log_scalars(self.evaluation_metrics)
 
         # add histogram of model parameters to the tensorboard
@@ -192,6 +196,25 @@ class Trainer:
             return
         for metric_name in metric_tracker.keys():
             self.writer.add_scalar(f"{metric_name}", metric_tracker.avg(metric_name))
+
+    def _log_image(self, img, pred, size, real_ans, **kwargs):
+        bs = len(real_ans)
+        idx = np.random.choice(np.arange(len(img)))
+        plt.imshow(np.transpose(img[idx].detach().cpu().numpy().astype(np.uint8), axes=(1, 2, 0)))
+
+        img_size = torch.ones([bs, 2]) * self.model.img_size
+        pred_coord = pred2coord(pred, img_size).detach().cpu().numpy()
+        real_norm = coord2pred(real_ans, size)
+        real_img_coord = pred2coord(real_norm, img_size)
+
+        x_idx, y_idx = np.arange(pred.shape[1]) % 2 == 0, np.arange(pred.shape[1]) % 2 == 1
+        plt.scatter(pred_coord[idx, x_idx], pred_coord[idx, y_idx], label='Pred')
+        plt.scatter(real_img_coord[idx, x_idx], real_img_coord[idx, y_idx], label='Real')
+        plt.legend()
+        plt.savefig('1.png')
+        plt.close()
+        with Image.open('1.png') as image:
+            self.writer.add_image('Pred and real', image)
 
     def train(self):
         """

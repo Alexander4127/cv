@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 class Model(nn.Module):
     def __init__(self, img_size, n_channels):
         super().__init__()
-        assert img_size % 16 == 0
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=n_channels, kernel_size=3, padding=1),
             nn.ReLU(),
@@ -27,7 +26,7 @@ class Model(nn.Module):
         )
         self.head = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=img_size**2 * n_channels // 16, out_features=64),
+            nn.Linear(in_features=(img_size // 8)**2 * n_channels * 4, out_features=64),
             nn.ReLU(),
             nn.Linear(in_features=64, out_features=28)
         )

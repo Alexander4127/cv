@@ -37,15 +37,15 @@ def collate_fn(dataset_items):
 def main():
     config = {
         "wandb_project": "cv_faces",
-        "wandb_name": "7_def_model",
-        "img_size": 128,
-        "n_channels": 64,
+        "wandb_name": "7_new_default_model",
+        "img_size": 200,
+        "n_channels": 8,
         "batch_size": 32
     }
 
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     datasets = {
         "train": ImageDataset('tests/00_test_img_input/train', img_size=config['img_size'], is_train=True),
@@ -71,7 +71,7 @@ def main():
     # disabling scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
-        optimizer, total_iters=5
+        optimizer, total_iters=1, factor=1
     )
 
     trainer = Trainer(

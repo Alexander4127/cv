@@ -10,6 +10,9 @@ from torch.utils.data import Dataset
 import torchvision.transforms as T
 
 
+from sol.utils import coord2pred
+
+
 class ImageDataset(Dataset):
     def __init__(self, path, img_size, is_train, train_size=0.8):
         self._data_dir = pathlib.Path(path)
@@ -35,13 +38,16 @@ class ImageDataset(Dataset):
         idx = self._idx[out_idx]
         padded_idx = '0' * (5 - len(str(idx))) + str(idx) + '.jpg'
         img_path = self._data_dir / 'images' / padded_idx
-        img = torch.tensor(self._read_img(img_path)) / 255
+        img = torch.tensor(self._read_img(img_path))
+
         assert img.shape[0] == 3
-        real_size = img.shape[1:]
+        real_size = torch.tensor(img.shape[1:])
         img = self._resize(img)
         real_ans = np.array(self._df.loc[padded_idx])
-        ans = real_ans.copy().astype(float)
-        assert ans.shape == (28,)
-        ans[np.arange(len(ans)) % 2 == 0] /= real_size[0]
-        ans[np.arange(len(ans)) % 2 == 1] /= real_size[1]
-        return {"img": img.float(), "ans": torch.tensor(ans).float(), "size": real_size, "real_ans": real_ans}
+        ans = coord2pred(torch.tensor(real_ans.reshape(1, -1)), real_size.unsqueeze(0)).float()
+        return {
+            "img": img.float(),
+            "ans": ans,
+            "size": real_size,
+            "real_ans": real_ans
+        }
