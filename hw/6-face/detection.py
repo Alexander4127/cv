@@ -37,7 +37,7 @@ def collate_fn(dataset_items):
 def main():
     config = {
         "wandb_project": "cv_faces",
-        "wandb_name": "7_new_default_model",
+        "wandb_name": "7_default_add_batch_norm",
         "img_size": 200,
         "n_channels": 8,
         "batch_size": 32
@@ -84,7 +84,7 @@ def main():
         dataloaders=dataloaders,
         epochs=1000,
         log_step=10,
-        len_epoch=50,
+        len_epoch=100,
         lr_scheduler=lr_scheduler
     )
 

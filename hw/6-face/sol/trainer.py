@@ -38,7 +38,7 @@ class Trainer:
             epochs,
             log_step,
             len_epoch,
-            lr_scheduler,
+            lr_scheduler
     ):
         self.device = device
         self.config = config
@@ -55,6 +55,8 @@ class Trainer:
         self.lr_scheduler = lr_scheduler
         self.log_step = log_step
         self.writer = WanDBWriter(config, metrics)
+        self.name = config['wandb_name']
+        self.val_loss = 1e9
 
         self.train_metrics = MetricTracker(
             "loss", "grad norm", *[m.name for m in metrics], writer=self.writer
@@ -162,10 +164,17 @@ class Trainer:
             self._log_image(**batch)
             self._log_scalars(self.evaluation_metrics)
 
+        if self.evaluation_metrics.avg("loss") < self.val_loss:
+            self.val_loss = self.evaluation_metrics.avg("loss")
+            self._save_model()
+
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
             self.writer.add_histogram(name, p, bins="auto")
         return self.evaluation_metrics.result()
+
+    def _save_model(self):
+        torch.save(self.model, f'models/{self.name}')
 
     def _progress(self, batch_idx):
         base = "[{}/{} ({:.0f}%)]"
@@ -211,9 +220,9 @@ class Trainer:
         plt.scatter(pred_coord[idx, x_idx], pred_coord[idx, y_idx], label='Pred')
         plt.scatter(real_img_coord[idx, x_idx], real_img_coord[idx, y_idx], label='Real')
         plt.legend()
-        plt.savefig('1.png')
+        plt.savefig(f'img/{self.name}')
         plt.close()
-        with Image.open('1.png') as image:
+        with Image.open(f'img/{self.name}') as image:
             self.writer.add_image('Pred and real', image)
 
     def train(self):

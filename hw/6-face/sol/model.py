@@ -12,16 +12,19 @@ class Model(nn.Module):
         self.img_size = img_size
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=n_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features=n_channels),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2)
         )
         self.conv2 = nn.Sequential(
             nn.Conv2d(in_channels=n_channels, out_channels=n_channels * 2, kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features=n_channels * 2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2)
         )
         self.conv3 = nn.Sequential(
             nn.Conv2d(in_channels=n_channels * 2, out_channels=n_channels * 4, kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features=n_channels * 4),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2)
         )
