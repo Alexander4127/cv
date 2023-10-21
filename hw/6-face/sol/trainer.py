@@ -20,6 +20,8 @@ from sol.utils import pred2coord, coord2pred
 
 logger = logging.getLogger(__name__)
 
+TEST_IMAGE_SIZE = 100
+
 
 class Trainer:
     """
@@ -127,7 +129,7 @@ class Trainer:
             self.optimizer.zero_grad()
 
         batch["pred"] = self.model(batch["img"])
-        batch["loss"] = self.criterion(batch["pred"], batch["ans"])
+        batch["loss"] = self.criterion(batch["pred"], batch["ans"]) * TEST_IMAGE_SIZE**2
 
         if is_train:
             batch["loss"].backward()
@@ -220,9 +222,9 @@ class Trainer:
         plt.scatter(pred_coord[idx, x_idx], pred_coord[idx, y_idx], label='Pred')
         plt.scatter(real_img_coord[idx, x_idx], real_img_coord[idx, y_idx], label='Real')
         plt.legend()
-        plt.savefig(f'img/{self.name}')
+        plt.savefig(f'img/{self.name}.png')
         plt.close()
-        with Image.open(f'img/{self.name}') as image:
+        with Image.open(f'img/{self.name}.png') as image:
             self.writer.add_image('Pred and real', image)
 
     def train(self):
