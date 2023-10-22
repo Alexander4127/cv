@@ -4,6 +4,7 @@ import logging
 import warnings
 import pathlib
 import sys
+from typing import Dict
 
 import numpy as np
 import torch
@@ -11,9 +12,9 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from sol.model import Model
-from sol.datasets import ImageDataset
+from sol.datasets import ImageDataset, Mode
 from sol.trainer import Trainer
-from sol.metrics import RealMSE
+from sol.utils import pred2coord
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -30,42 +31,43 @@ np.random.seed(SEED)
 def collate_fn(dataset_items):
     result_batch = {}
     for k in dataset_items[0].keys():
+        if k == "filename":
+            result_batch[k] = [item[k] for item in dataset_items]
+            continue
         result_batch[k] = torch.stack([torch.tensor(item[k]) for item in dataset_items])
     return result_batch
 
 
-def main():
-    config = {
-        "wandb_project": "cv_faces",
-        "wandb_name": "7_default_add_batch_norm",
-        "img_size": 200,
-        "n_channels": 8,
-        "batch_size": 32
-    }
+config = {
+    "wandb_project": "cv_faces",
+    "wandb_name": "7_default_with_hor_flip",
+    "img_size": 200,
+    "n_channels": 8,
+    "batch_size": 32
+}
 
+
+def train_detector(train_gt: str, train_images: str, fast_train: bool = False):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO if not fast_train else logging.INFO)
 
-    datasets = {
-        "train": ImageDataset('tests/00_test_img_input/train', img_size=config['img_size'], is_train=True),
-        "val": ImageDataset('tests/00_test_img_input/train', img_size=config['img_size'], is_train=False)
-    }
+    train_dataset = ImageDataset(train_images, img_size=config['img_size'], type_set=Mode.TRAIN, gt=train_gt)
+    val_dataset = ImageDataset(train_images, img_size=config['img_size'], type_set=Mode.VAL, gt=train_gt)
+
     dataloaders = {
-        "train": DataLoader(datasets["train"], shuffle=True, batch_size=config['batch_size'], collate_fn=collate_fn),
-        "val": DataLoader(datasets["val"], shuffle=False, batch_size=config['batch_size'], collate_fn=collate_fn)
+        "train": DataLoader(train_dataset, shuffle=True, batch_size=config['batch_size'], collate_fn=collate_fn),
+        "val": DataLoader(val_dataset, shuffle=False, batch_size=config['batch_size'], collate_fn=collate_fn)
     }
 
     # build model architecture, then print to console
     model = Model(img_size=config['img_size'], n_channels=config['n_channels'])
     logger.info(model)
 
-    # prepare for (multi-device) GPU training
     model = model.to(device)
 
     # get function handles of loss and metrics
     loss_module = nn.MSELoss().to(device)
-    metrics = [RealMSE(name="real_mse")]
 
     # build optimizer, learning rate scheduler. delete every line containing lr_scheduler for
     # disabling scheduler
@@ -76,20 +78,53 @@ def main():
 
     trainer = Trainer(
         model=model,
-        metrics=metrics,
+        metrics=[],
         criterion=loss_module,
         optimizer=optimizer,
         config=config,
         device=device,
         dataloaders=dataloaders,
-        epochs=1000,
+        epochs=1000 if not fast_train else 1,
         log_step=10,
-        len_epoch=100,
-        lr_scheduler=lr_scheduler
+        len_epoch=100 if not fast_train else 10,
+        lr_scheduler=lr_scheduler,
+        fast_train=fast_train
     )
 
     trainer.train()
 
 
+def detect(model_filename: str, test_image_dir: str) -> Dict[str, np.ndarray]:
+    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+
+    model = Model(img_size=config['img_size'], n_channels=config['n_channels'])
+    model.load_state_dict(torch.load(model_filename))
+    model.eval()
+
+    test_dataset = ImageDataset(test_image_dir, img_size=config['img_size'], type_set=Mode.TEST)
+
+    test_loader = DataLoader(
+        test_dataset,
+        shuffle=False,
+        batch_size=config['batch_size'],
+        collate_fn=collate_fn,
+        drop_last=False
+    )
+
+    results = {}
+    with torch.no_grad():
+        for batch in test_loader:
+            pred = pred2coord(model(batch["img"]), batch["size"]).numpy()
+            results.update(dict(zip(batch["filename"], pred)))
+
+    return results
+
+
+from run import read_csv
+
 if __name__ == "__main__":
-    main()
+    train_detector(
+        train_gt=read_csv('tests/00_test_img_input/train/gt.csv'),
+        train_images='tests/00_test_img_input/train/images',
+        fast_train=False
+    )

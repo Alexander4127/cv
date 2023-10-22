@@ -40,7 +40,8 @@ class Trainer:
             epochs,
             log_step,
             len_epoch,
-            lr_scheduler
+            lr_scheduler,
+            fast_train=True
     ):
         self.device = device
         self.config = config
@@ -56,7 +57,8 @@ class Trainer:
         self.evaluation_dataloaders = {k: v for k, v in dataloaders.items() if k != "train"}
         self.lr_scheduler = lr_scheduler
         self.log_step = log_step
-        self.writer = WanDBWriter(config, metrics)
+        self.fast_train = fast_train
+        self.writer = WanDBWriter(config, metrics) if not self.fast_train else None
         self.name = config['wandb_name']
         self.val_loss = 1e9
 
@@ -88,7 +90,9 @@ class Trainer:
         """
         self.model.train()
         self.train_metrics.reset()
-        self.writer.add_scalar("epoch", epoch)
+        if not self.fast_train:
+            self.writer.add_scalar("epoch", epoch)
+        last_train_metrics = {}
         for batch_idx, batch in enumerate(
                 tqdm(self.train_dataloader, desc="train", total=self.len_epoch)
         ):
@@ -98,7 +102,7 @@ class Trainer:
                 metrics=self.train_metrics,
             )
             self.train_metrics.update("grad norm", self.get_grad_norm())
-            if batch_idx % self.log_step == 0:
+            if batch_idx % self.log_step == 0 and not self.fast_train:
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                 self.logger.debug(
                     "Train Epoch: {} {} Loss: {:.6f}".format(
@@ -116,6 +120,8 @@ class Trainer:
             if batch_idx >= self.len_epoch:
                 break
         log = last_train_metrics
+        if self.fast_train:
+            return log
 
         for part, dataloader in self.evaluation_dataloaders.items():
             val_log = self._evaluation_epoch(epoch, part, dataloader)
@@ -162,21 +168,26 @@ class Trainer:
                     is_train=False,
                     metrics=self.evaluation_metrics,
                 )
-            self.writer.set_step(epoch * self.len_epoch, part)
-            self._log_image(**batch)
-            self._log_scalars(self.evaluation_metrics)
+            if not self.fast_train:
+                self.writer.set_step(epoch * self.len_epoch, part)
+                self._log_image(**batch)
+                self._log_scalars(self.evaluation_metrics)
+
+        if self.fast_train:
+            return self.evaluation_metrics.result()
 
         if self.evaluation_metrics.avg("loss") < self.val_loss:
             self.val_loss = self.evaluation_metrics.avg("loss")
             self._save_model()
 
-        # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
             self.writer.add_histogram(name, p, bins="auto")
+
         return self.evaluation_metrics.result()
 
     def _save_model(self):
-        torch.save(self.model, f'models/{self.name}')
+        logger.info(f'    Saving model to models/{self.name}...')
+        torch.save(self.model.state_dict(), f'models/{self.name}')
 
     def _progress(self, batch_idx):
         base = "[{}/{} ({:.0f}%)]"
@@ -208,15 +219,14 @@ class Trainer:
         for metric_name in metric_tracker.keys():
             self.writer.add_scalar(f"{metric_name}", metric_tracker.avg(metric_name))
 
-    def _log_image(self, img, pred, size, real_ans, **kwargs):
-        bs = len(real_ans)
+    def _log_image(self, img, pred, size, ans, **kwargs):
+        bs = len(ans)
         idx = np.random.choice(np.arange(len(img)))
         plt.imshow(np.transpose(img[idx].detach().cpu().numpy().astype(np.uint8), axes=(1, 2, 0)))
 
         img_size = torch.ones([bs, 2]) * self.model.img_size
         pred_coord = pred2coord(pred, img_size).detach().cpu().numpy()
-        real_norm = coord2pred(real_ans, size)
-        real_img_coord = pred2coord(real_norm, img_size)
+        real_img_coord = pred2coord(ans, img_size).numpy()
 
         x_idx, y_idx = np.arange(pred.shape[1]) % 2 == 0, np.arange(pred.shape[1]) % 2 == 1
         plt.scatter(pred_coord[idx, x_idx], pred_coord[idx, y_idx], label='Pred')
