@@ -25,28 +25,26 @@ class Mode(Enum):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, image_dir: str, img_size: int, type_set: Mode, gt=None, train_size=0.8):
+    def __init__(self, image_dir: str, img_size: int, type_set: Mode, gt=None, train_size=0.9):
         self._image_dir = pathlib.Path(image_dir)
         self._transform = T.Compose([
             T.PILToTensor(),
-            lambda t: t.float() / 255
-        ])
-
-        self._resize = T.Compose([
-            T.Resize([img_size, img_size]),
+            lambda t: t.float() / 255,
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
+        self._resize = T.Resize([img_size, img_size])
+
         if type_set == Mode.TRAIN:
             self._size_augments = SequentialAugmentation([
-                RandomApply(HorizontalFlip()),
-                RandomApply(VerticalFlip())
+                # RandomApply(HorizontalFlip()),
+                # RandomApply(VerticalFlip())
             ])
             self._st_augments = SequentialAugmentation([
                 RandomApply(ColorJitter())
             ])
 
-        self._idx: np.ndarray = np.arange(len([name for name in os.listdir(image_dir) if name.endswith('.jpg')]))
+        self._idx: list = [name for name in os.listdir(image_dir) if name.endswith('.jpg')]
         self._type_set = type_set
         if type_set != Mode.TEST:
             split_idx = train_test_split(self._idx, train_size=train_size)
@@ -58,8 +56,7 @@ class ImageDataset(Dataset):
         return len(self._idx)
 
     def __getitem__(self, out_idx):
-        idx = self._idx[out_idx]
-        padded_idx = '0' * (5 - len(str(idx))) + str(idx) + '.jpg'
+        padded_idx = self._idx[out_idx]
         img_path = self._image_dir / padded_idx
         with Image.open(img_path) as image:
             img = self._transform(image.convert('RGB'))

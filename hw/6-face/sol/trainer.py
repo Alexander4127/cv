@@ -222,7 +222,7 @@ class Trainer:
     def _log_image(self, img, pred, size, ans, **kwargs):
         bs = len(ans)
         idx = np.random.choice(np.arange(len(img)))
-        plt.imshow(np.transpose(img[idx].detach().cpu().numpy().astype(np.uint8), axes=(1, 2, 0)))
+        plt.imshow(np.clip(np.transpose(img[idx].detach().cpu().numpy(), axes=(1, 2, 0)), 0, 1))
 
         img_size = torch.ones([bs, 2]) * self.model.img_size
         pred_coord = pred2coord(pred, img_size).detach().cpu().numpy()
