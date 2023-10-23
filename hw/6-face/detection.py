@@ -44,7 +44,7 @@ config = {
 }
 
 
-def train_detector(train_gt: str, train_images: str, fast_train: bool = False):
+def train_detector(train_gt: dict, train_images: str, fast_train: bool = False):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO if not fast_train else logging.INFO)
