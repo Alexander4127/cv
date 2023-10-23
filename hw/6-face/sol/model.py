@@ -40,17 +40,21 @@ class Model(nn.Module):
         super().__init__()
         self.img_size = img_size
         self.blocks = nn.Sequential(
-            ResBlock(in_chan=3, out_chan=n_channels * 2),
+            conv3x3(in_chan=3, out_chan=n_channels * 2),
             nn.BatchNorm2d(num_features=n_channels * 2),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-            ResBlock(in_chan=n_channels * 2, out_chan=n_channels * 4),
+            conv3x3(in_chan=n_channels * 2, out_chan=n_channels * 4),
             nn.BatchNorm2d(num_features=n_channels * 4),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-            ResBlock(in_chan=n_channels * 4, out_chan=n_channels * 8),
+            conv3x3(in_chan=n_channels * 4, out_chan=n_channels * 8),
             nn.BatchNorm2d(num_features=n_channels * 8),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-            ResBlock(in_chan=n_channels * 8, out_chan=n_channels * 16),
+            conv3x3(in_chan=n_channels * 8, out_chan=n_channels * 16),
             nn.BatchNorm2d(num_features=n_channels * 16),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2)
         )
         self.head = nn.Sequential(
