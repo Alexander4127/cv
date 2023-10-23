@@ -1,14 +1,15 @@
 import logging
 import os
+from typing import Optional
 import pathlib
 from enum import Enum
 
 import matplotlib.pyplot as plt
+import pandas as pd
 from PIL import Image
 from sklearn.model_selection import train_test_split
 import torch
 import numpy as np
-import pandas as pd
 from torch.utils.data import Dataset
 import torchvision.transforms as T
 
@@ -25,7 +26,12 @@ class Mode(Enum):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, image_dir: str, img_size: int, type_set: Mode, gt=None, train_size=0.9):
+    def __init__(self,
+                 image_dir: str,
+                 img_size: int,
+                 type_set: Mode,
+                 gt: Optional[dict] = None,
+                 train_size: float = 0.8):
         self._image_dir = pathlib.Path(image_dir)
         self._transform = T.Compose([
             T.PILToTensor(),
@@ -37,17 +43,20 @@ class ImageDataset(Dataset):
 
         if type_set == Mode.TRAIN:
             self._size_augments = SequentialAugmentation([
-                # RandomApply(HorizontalFlip()),
-                # RandomApply(VerticalFlip())
+                # RandomApply(HorizontalFlip())
             ])
             self._st_augments = SequentialAugmentation([
                 RandomApply(ColorJitter())
             ])
 
-        self._idx: list = [name for name in os.listdir(image_dir) if name.endswith('.jpg')]
+        if gt is None:
+            self._idx = [name for name in os.listdir(image_dir) if name.endswith('.jpg')]
+        else:
+            self._idx = list(gt.keys())
+
         self._type_set = type_set
         if type_set != Mode.TEST:
-            split_idx = train_test_split(self._idx, train_size=train_size)
+            split_idx = train_test_split(self._idx, train_size=train_size, random_state=42)
             self._idx = split_idx[0] if type_set == Mode.TRAIN else split_idx[1]
             assert gt is not None
             self._df: dict = gt
@@ -61,7 +70,7 @@ class ImageDataset(Dataset):
         with Image.open(img_path) as image:
             img = self._transform(image.convert('RGB'))
 
-        assert img.shape[0] == 3
+        assert img.shape[0] == 3 and len(img.shape) == 3
         real_size = torch.tensor(img.shape[1:])
         d = {"filename": padded_idx, "img": img.float(), "size": real_size}
 
