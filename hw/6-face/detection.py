@@ -1,8 +1,5 @@
-import argparse
-import collections
 import logging
 import warnings
-import pathlib
 import sys
 from typing import Dict
 
@@ -40,7 +37,7 @@ def collate_fn(dataset_items):
 
 config = {
     "wandb_project": "cv_faces",
-    "wandb_name": "8_resnet_full_wo_hor_aug",
+    "wandb_name": "8_resnet_conv_wo_hor_aug",
     "img_size": 256,
     "n_channels": 8,
     "batch_size": 32
@@ -86,7 +83,7 @@ def train_detector(train_gt: str, train_images: str, fast_train: bool = False):
         dataloaders=dataloaders,
         epochs=1000 if not fast_train else 1,
         log_step=10,
-        len_epoch=100 if not fast_train else 10,
+        len_epoch=100 if not fast_train else 3,
         lr_scheduler=lr_scheduler,
         fast_train=fast_train
     )
