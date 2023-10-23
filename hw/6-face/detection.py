@@ -47,13 +47,15 @@ config = {
 }
 
 
-def train_detector(train_gt: str, train_images: str, fast_train: bool = False):
+def train_detector(train_gt: dict, train_images: str, fast_train: bool = False):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO if not fast_train else logging.INFO)
 
     train_dataset = ImageDataset(train_images, img_size=config['img_size'], type_set=Mode.TRAIN, gt=train_gt)
     val_dataset = ImageDataset(train_images, img_size=config['img_size'], type_set=Mode.VAL, gt=train_gt)
+
+    assert not len(set(train_dataset._idx) & set(val_dataset._idx))
 
     dataloaders = {
         "train": DataLoader(train_dataset, shuffle=True, batch_size=config['batch_size'], collate_fn=collate_fn),
