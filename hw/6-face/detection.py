@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torchvision.models import resnet18
 
 from sol.model import Model
 from sol.datasets import ImageDataset, Mode
@@ -40,7 +41,7 @@ def collate_fn(dataset_items):
 
 config = {
     "wandb_project": "cv_faces",
-    "wandb_name": "8_resnet_conv_wo_hor_aug",
+    "wandb_name": "8_real_resnet",
     "img_size": 256,
     "n_channels": 8,
     "batch_size": 32
@@ -63,7 +64,8 @@ def train_detector(train_gt: dict, train_images: str, fast_train: bool = False):
     }
 
     # build model architecture, then print to console
-    model = Model(img_size=config['img_size'], n_channels=config['n_channels'])
+    # model = Model(img_size=config['img_size'], n_channels=config['n_channels'])
+    model = resnet18(num_classes=28)
     logger.info(model)
 
     model = model.to(device)
@@ -99,7 +101,8 @@ def train_detector(train_gt: dict, train_images: str, fast_train: bool = False):
 def detect(model_filename: str, test_image_dir: str) -> Dict[str, np.ndarray]:
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)
 
-    model = Model(img_size=config['img_size'], n_channels=config['n_channels'])
+    # model = Model(img_size=config['img_size'], n_channels=config['n_channels'])
+    model = resnet18(num_classes=28)
     model.load_state_dict(torch.load(model_filename))
     model.eval()
 

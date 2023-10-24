@@ -217,7 +217,7 @@ class Trainer:
         idx = np.random.choice(np.arange(len(img)))
         plt.imshow(np.clip(np.transpose(img[idx].detach().cpu().numpy(), axes=(1, 2, 0)), 0, 1))
 
-        img_size = torch.ones([bs, 2]) * self.model.img_size
+        img_size = torch.ones([bs, 2]) * self.config['img_size']
         pred_coord = pred2coord(pred, img_size).detach().cpu().numpy()
         real_img_coord = pred2coord(ans, img_size).numpy()
 
