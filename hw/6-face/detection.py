@@ -88,7 +88,7 @@ def train_detector(train_gt: dict, train_images: str, fast_train: bool = False):
         dataloaders=dataloaders,
         epochs=1000 if not fast_train else 1,
         log_step=10,
-        len_epoch=100 if not fast_train else 10,
+        len_epoch=100 if not fast_train else 3,
         lr_scheduler=lr_scheduler,
         fast_train=fast_train
     )
