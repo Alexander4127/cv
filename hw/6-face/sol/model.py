@@ -59,7 +59,11 @@ class Model(nn.Module):
         )
         self.head = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=(img_size // 16)**2 * n_channels * 16, out_features=28),
+            nn.Linear(in_features=(img_size // 16)**2 * n_channels * 16, out_features=128),
+            nn.ReLU(),
+            nn.Linear(in_features=128, out_features=64),
+            nn.ReLU(),
+            nn.Linear(in_features=64, out_features=28)
         )
 
     def forward(self, inputs):
