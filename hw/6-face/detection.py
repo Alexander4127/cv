@@ -75,7 +75,7 @@ def train_detector(train_gt: dict, train_images: str, fast_train: bool = False):
 
     # build optimizer, learning rate scheduler. delete every line containing lr_scheduler for
     # disabling scheduler
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
         optimizer, total_iters=1, factor=1
     )
