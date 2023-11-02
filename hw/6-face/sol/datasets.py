@@ -39,7 +39,10 @@ class ImageDataset(Dataset):
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-        self._resize = T.Resize([img_size, img_size])
+        self._resize = T.Compose([
+            T.Resize([img_size, img_size]),
+            T.CenterCrop(224)
+        ])
 
         if type_set == Mode.TRAIN:
             self._size_augments = SequentialAugmentation([
