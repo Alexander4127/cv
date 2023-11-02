@@ -31,15 +31,17 @@ class ImageDataset(Dataset):
                  img_size: int,
                  type_set: Mode,
                  gt: Optional[dict] = None,
-                 train_size: float = 0.8):
+                 train_size: float = 0.9):
         self._image_dir = pathlib.Path(image_dir)
         self._transform = T.Compose([
-            T.PILToTensor(),
+            T.PILToTensor()
+        ])
+
+        self._resize = T.Compose([
+            T.Resize([img_size, img_size]),
             lambda t: t.float() / 255,
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-
-        self._resize = T.Resize([img_size, img_size])
 
         if type_set == Mode.TRAIN:
             self._size_augments = SequentialAugmentation([
