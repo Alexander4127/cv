@@ -1,21 +1,19 @@
-import random
-from pathlib import Path
-from random import shuffle
 import logging
 
+import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+from PIL import Image
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.utils import clip_grad_norm_
 from tqdm import tqdm
 
 from sol.tracker import MetricTracker
 from sol.logger import WanDBWriter
+from sol.utils import pred2coord, coord2pred
 
 
 logger = logging.getLogger(__name__)
+
+TEST_IMAGE_SIZE = 100
 
 
 class Trainer:
@@ -36,8 +34,10 @@ class Trainer:
             log_step,
             len_epoch,
             lr_scheduler,
+            fast_train=True
     ):
         self.device = device
+        self.config = config
         self.logger = logging.getLogger(__name__)
 
         self.model = model
@@ -50,7 +50,10 @@ class Trainer:
         self.evaluation_dataloaders = {k: v for k, v in dataloaders.items() if k != "train"}
         self.lr_scheduler = lr_scheduler
         self.log_step = log_step
-        self.writer = WanDBWriter(config, metrics)
+        self.fast_train = fast_train
+        self.writer = WanDBWriter(config, metrics) if not self.fast_train else None
+        self.name = config['wandb_name']
+        self.val_loss = 1e9
 
         self.train_metrics = MetricTracker(
             "loss", "grad norm", *[m.name for m in metrics], writer=self.writer
@@ -80,7 +83,9 @@ class Trainer:
         """
         self.model.train()
         self.train_metrics.reset()
-        self.writer.add_scalar("epoch", epoch)
+        if not self.fast_train:
+            self.writer.add_scalar("epoch", epoch)
+        last_train_metrics = {}
         for batch_idx, batch in enumerate(
                 tqdm(self.train_dataloader, desc="train", total=self.len_epoch)
         ):
@@ -90,7 +95,7 @@ class Trainer:
                 metrics=self.train_metrics,
             )
             self.train_metrics.update("grad norm", self.get_grad_norm())
-            if batch_idx % self.log_step == 0:
+            if batch_idx % self.log_step == 0 and not self.fast_train:
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                 self.logger.debug(
                     "Train Epoch: {} {} Loss: {:.6f}".format(
@@ -101,12 +106,15 @@ class Trainer:
                     "learning rate", self.lr_scheduler.get_last_lr()[0]
                 )
                 self._log_scalars(self.train_metrics)
+                self._log_image(**batch)
 
                 last_train_metrics = self.train_metrics.result()
                 self.train_metrics.reset()
             if batch_idx >= self.len_epoch:
                 break
         log = last_train_metrics
+        if self.fast_train:
+            return log
 
         for part, dataloader in self.evaluation_dataloaders.items():
             val_log = self._evaluation_epoch(epoch, part, dataloader)
@@ -120,7 +128,7 @@ class Trainer:
             self.optimizer.zero_grad()
 
         batch["pred"] = self.model(batch["img"])
-        batch["loss"] = self.criterion(batch["pred"], batch["ans"])
+        batch["loss"] = self.criterion(batch["pred"], batch["ans"]) * TEST_IMAGE_SIZE**2
 
         if is_train:
             batch["loss"].backward()
@@ -153,14 +161,26 @@ class Trainer:
                     is_train=False,
                     metrics=self.evaluation_metrics,
                 )
-            self.writer.set_step(epoch * self.len_epoch, part)
+            if not self.fast_train:
+                self.writer.set_step(epoch * self.len_epoch, part)
+                self._log_image(**batch)
+                self._log_scalars(self.evaluation_metrics)
 
-            self._log_scalars(self.evaluation_metrics)
+        if self.fast_train:
+            return self.evaluation_metrics.result()
 
-        # add histogram of model parameters to the tensorboard
+        if self.evaluation_metrics.avg("loss") < self.val_loss:
+            self.val_loss = self.evaluation_metrics.avg("loss")
+            self._save_model()
+
         for name, p in self.model.named_parameters():
             self.writer.add_histogram(name, p, bins="auto")
+
         return self.evaluation_metrics.result()
+
+    def _save_model(self):
+        logger.info(f'    Saving model to models/{self.name}...')
+        torch.save(self.model.state_dict(), f'models/{self.name}')
 
     def _progress(self, batch_idx):
         base = "[{}/{} ({:.0f}%)]"
@@ -191,6 +211,24 @@ class Trainer:
             return
         for metric_name in metric_tracker.keys():
             self.writer.add_scalar(f"{metric_name}", metric_tracker.avg(metric_name))
+
+    def _log_image(self, img, pred, size, ans, **kwargs):
+        bs = len(ans)
+        idx = np.random.choice(np.arange(len(img)))
+        plt.imshow(np.clip(np.transpose(img[idx].detach().cpu().numpy(), axes=(1, 2, 0)), 0, 1))
+
+        img_size = torch.ones([bs, 2]) * self.config['img_size']
+        pred_coord = pred2coord(pred, img_size).detach().cpu().numpy()
+        real_img_coord = pred2coord(ans, img_size).numpy()
+
+        x_idx, y_idx = np.arange(pred.shape[1]) % 2 == 0, np.arange(pred.shape[1]) % 2 == 1
+        plt.scatter(pred_coord[idx, x_idx], pred_coord[idx, y_idx], label='Pred')
+        plt.scatter(real_img_coord[idx, x_idx], real_img_coord[idx, y_idx], label='Real')
+        plt.legend()
+        plt.savefig(f'img/{self.name}.png')
+        plt.close()
+        with Image.open(f'img/{self.name}.png') as image:
+            self.writer.add_image('Pred and real', image)
 
     def train(self):
         """
